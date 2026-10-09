@@ -12,16 +12,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: recursive
 
       - name: Select Xcode version
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "26.6.0"
 
+      - name: Install OpenSSL.xcframework
+        run: |
+          set -e
+          mkdir -p OpenSSL/Frameworks
+          if [ ! -d "OpenSSL/Frameworks/OpenSSL.xcframework" ]; then
+            echo "Downloading OpenSSL.xcframework..."
+            curl -L --fail --retry 3 \
+              -o /tmp/openssl.zip \
+              "https://github.com/krzyzanowskim/OpenSSL/releases/download/3.6.5000/OpenSSL.xcframework.zip"
+            unzip -q /tmp/openssl.zip -d /tmp/openssl
+            cp -R /tmp/openssl/OpenSSL.xcframework OpenSSL/Frameworks/
+            rm -rf /tmp/openssl /tmp/openssl.zip
+          fi
+          ls -d OpenSSL/Frameworks/OpenSSL.xcframework
+
       - name: Build and Archive
         run: |
           set -o pipefail
+          mkdir -p build
           xcodebuild clean archive \
             -project "LiveContainer.xcodeproj" \
             -scheme "LiveContainer" \
