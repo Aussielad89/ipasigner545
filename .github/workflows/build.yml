@@ -1,7 +1,6 @@
 name: iOS Build
 
 on:
-
   pull_request:
   workflow_dispatch:
 
@@ -20,7 +19,6 @@ jobs:
         with:
           xcode-version: "26.6.0"
 
-
       - name: Build and Archive
         run: |
           set -o pipefail
@@ -28,19 +26,25 @@ jobs:
             -project "LiveContainer.xcodeproj" \
             -scheme "LiveContainer" \
             -configuration Release \
-            -archivePath $PWD/build/LiveContainer.xcarchive \
+            -archivePath "$PWD/build/LiveContainer.xcarchive" \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
-          | xcpretty
+            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/xcodebuild.log
 
       - name: Create IPA
         run: |
+          set -o pipefail
           mkdir -p build/Payload
-          cp -r build/LiveContainer.xcarchive/Products/Applications/FlekDeck.app build/Payload/
+          APP_PATH=$(find "$PWD/build/LiveContainer.xcarchive/Products/Applications" -maxdepth 1 -name "*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: no .app found in archive" >&2
+            exit 1
+          fi
+          echo "Found app: $APP_PATH"
+          cp -r "$APP_PATH" build/Payload/
           cd build
-          zip -r LiveContainer.ipa Payload
+          zip -qr LiveContainer.ipa Payload
           rm -rf Payload
-          echo "IPA created successfully:"
           ls -lh LiveContainer.ipa
 
       - name: Upload IPA artifact
@@ -48,3 +52,4 @@ jobs:
         with:
           name: LiveContainer.ipa
           path: build/LiveContainer.ipa
+          retention-days: 7
