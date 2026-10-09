@@ -22,7 +22,7 @@ jobs:
       - name: Install OpenSSL.xcframework
         run: |
           set -e
-          mkdir -p OpenSSL/Frameworks
+          mkdir -p OpenSSL/Frameworks/iphoneos
           if [ ! -d "OpenSSL/Frameworks/OpenSSL.xcframework" ]; then
             echo "Downloading OpenSSL.xcframework..."
             curl -L --fail --retry 3 \
@@ -30,9 +30,14 @@ jobs:
               "https://github.com/krzyzanowskim/OpenSSL/releases/download/3.6.5000/OpenSSL.xcframework.zip"
             unzip -q /tmp/openssl.zip -d /tmp/openssl
             cp -R /tmp/openssl/OpenSSL.xcframework OpenSSL/Frameworks/
-            rm -rf /tmp/openssl /tmp/openssl.zip
           fi
-          ls -d OpenSSL/Frameworks/OpenSSL.xcframework
+          # Provide the loose iOS OpenSSL.framework expected by DEVELOPMENT_ASSET_PATHS (ZSign links against it)
+          if [ ! -d "OpenSSL/Frameworks/iphoneos/OpenSSL.framework" ]; then
+            SLICE=$(find "OpenSSL/Frameworks/OpenSSL.xcframework" -maxdepth 1 -type d -name "ios-*" ! -name "*simulator*" ! -name "*maccatalyst*" | head -n 1)
+            echo "Using xcframework slice: $SLICE"
+            cp -R "$SLICE/OpenSSL.framework" OpenSSL/Frameworks/iphoneos/
+          fi
+          ls -d OpenSSL/Frameworks/OpenSSL.xcframework OpenSSL/Frameworks/iphoneos/OpenSSL.framework
 
       - name: Build and Archive
         run: |
